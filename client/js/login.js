@@ -26,15 +26,6 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const identifier = identifierInput.value;
-        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
-        const isPhone = /^[\d\s()+\-]{11,}$/.test(identifier.replace(/\D/g, ''));
-        
-        if (!isEmail && !isPhone) {
-            showNotification('Пожалуйста, введите корректный email или номер телефона', 'error');
-            return;
-        }
-
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
@@ -42,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    identifier: identifier,
+                    identifier: identifierInput.value,
                     password: document.getElementById('loginPassword').value
                 })
             });
@@ -53,14 +44,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(data.message || 'Ошибка входа');
             }
 
-            console.log('Успешный вход, сохраняем токен');
+            // Сохраняем токен
             localStorage.setItem('token', data.token);
-            showNotification('Вход выполнен успешно!', 'success');
 
-            console.log('Начинаем редирект через 1 секунду');
-            setTimeout(() => {
-                redirectToDashboard();
-            }, 1000);
+            // Устанавливаем токен в cookie через отдельный запрос
+            const redirectResponse = await fetch('/auth/redirect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token: data.token })
+            });
+
+            if (!redirectResponse.ok) {
+                throw new Error('Ошибка установки cookie');
+            }
+
+            showNotification('Вход выполнен успешно!', 'success');
+            window.location.href = '/dashboard';
 
         } catch (err) {
             showNotification(err.message, 'error');

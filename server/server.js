@@ -8,153 +8,100 @@ const callsRoutes = require('./routes/calls');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const fs = require('fs');
+const recordingsRoutes = require('./routes/recordings');
+const mongoose = require('mongoose');
 
 const app = express();
 
 // Подключение к базе данных
 connectDB();
 
-// Middleware
+// Базовые middleware
 app.use(cors());
-app.use(express.json());
 app.use(cookieParser());
+app.use(express.json());
 
-// API маршруты должны быть первыми
+// Статические файлы должны быть первыми
+app.use(express.static(path.join(__dirname, '../client')));
+app.use('/js', express.static(path.join(__dirname, '../client/js')));
+app.use('/css', express.static(path.join(__dirname, '../client/css')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Создаем папку uploads, если её нет
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// API маршруты
 app.use('/api/auth', authRoutes);
 app.use('/api/calls', callsRoutes);
-
-// Статические файлы
-app.use(express.static(path.join(__dirname, '../client')));
-app.use('/images', express.static(path.join(__dirname, '../client/images')));
-app.use('/js', express.static(path.join(__dirname, '../client/js')));
+app.use('/api/recordings', recordingsRoutes);
 
 // Middleware для проверки авторизации
 const checkAuth = (req, res, next) => {
-    console.log('checkAuth для пути:', req.path);
-    
-    // Для API маршрутов и публичных страниц пропускаем проверку
-    if (req.path.startsWith('/api/') || 
-        req.path === '/login' || 
+    // Для публичных маршрутов пропускаем проверку
+    if (req.path === '/login' || 
         req.path === '/register' || 
         req.path === '/' ||
         req.path.includes('.')) {
-        console.log('Пропускаем проверку для публичного маршрута');
         return next();
     }
 
-    // Для dashboard и других защищенных маршрутов проверяем авторизацию
-    const token = req.cookies.auth_token || req.headers.authorization?.split(' ')[1];
-    console.log('Полученные cookies:', req.cookies);
-    console.log('Заголовок Authorization:', req.headers.authorization);
-    console.log('Извлеченный токен:', token);
+    const token = req.cookies?.auth_token || 
+                 req.headers.authorization?.split(' ')[1] || 
+                 null;
     
     if (!token) {
-        console.log('Нет токена, редирект на /login');
         return res.redirect('/login');
     }
     
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = decoded;
-        console.log('Токен валиден, пользователь:', decoded);
         next();
     } catch (err) {
-        console.log('Ошибка проверки токена:', err);
+        console.error('Ошибка проверки токена:', err);
         res.clearCookie('auth_token');
         return res.redirect('/login');
     }
 };
 
 // Маршрут для редиректа после авторизации
-app.post('/auth/redirect', express.json(), (req, res) => {
-    console.log('Получен запрос на /auth/redirect');
-    console.log('Тело запроса:', req.body);
-    console.log('Заголовки:', req.headers);
-    
+app.post('/auth/redirect', (req, res) => {
     const token = req.body.token || req.headers.authorization?.split(' ')[1];
-    console.log('Извлеченный токен:', token);
     
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log('Токен валиден, пользователь:', decoded);
-        
         res.cookie('auth_token', token, { 
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict'
         });
-        console.log('Токен установлен в cookie');
-        res.status(200).json({ success: true });
+        res.json({ success: true });
     } catch (err) {
-        console.log('Ошибка проверки токена при редиректе:', err);
+        console.error('Ошибка проверки токена:', err);
         res.status(401).json({ success: false });
     }
 });
 
 // HTML маршруты
-app.get('/dashboard', checkAuth, (req, res) => {
-    console.log('Запрос страницы dashboard');
-    console.log('Пользователь в запросе:', req.user);
-    const filePath = path.resolve(__dirname, '../client/dashboard.html');
-    console.log('Путь к файлу dashboard:', filePath);
-    
-    if (fs.existsSync(filePath)) {
-        console.log('Файл dashboard.html найден');
-        sendFileWithError(res, filePath, 'Ошибка при загрузке панели управления');
-    } else {
-        console.error('Файл dashboard.html не найден');
-        res.status(404).send('Страница не найдена');
+const serveHTML = (filePath) => (req, res) => {
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).redirect('/login');
     }
-});
+    res.sendFile(filePath);
+};
 
-app.get('/login', (req, res) => {
-    console.log('Запрос страницы входа');
-    const filePath = path.resolve(__dirname, '../client/login.html');
-    if (fs.existsSync(filePath)) {
-        sendFileWithError(res, filePath, 'Ошибка при загрузке страницы входа');
-    } else {
-        console.error('Файл не найден:', filePath);
-        res.status(404).send('Страница не найдена');
-    }
-});
-
-app.get('/register', (req, res) => {
-    console.log('Запрос страницы регистрации');
-    const filePath = path.resolve(__dirname, '../client/register.html');
-    if (fs.existsSync(filePath)) {
-        sendFileWithError(res, filePath, 'Ошибка при загрузке страницы регистрации');
-    } else {
-        console.error('Файл не найден:', filePath);
-        res.status(404).send('Страница не найдена');
-    }
-});
-
-app.get('/', (req, res) => {
-    console.log('Запрос главной страницы');
-    const filePath = path.resolve(__dirname, '../client/index.html');
-    if (fs.existsSync(filePath)) {
-        sendFileWithError(res, filePath, 'Ошибка при загрузке главной страницы');
-    } else {
-        console.error('Файл не найден:', filePath);
-        res.status(404).send('Страница не найдена');
-    }
-});
+app.get('/login', serveHTML(path.join(__dirname, '../client/login.html')));
+app.get('/register', serveHTML(path.join(__dirname, '../client/register.html')));
+app.get('/', serveHTML(path.join(__dirname, '../client/index.html')));
+app.get('/dashboard', checkAuth, serveHTML(path.join(__dirname, '../client/dashboard.html')));
 
 // Обработка 404
 app.use((req, res) => {
-    console.log('404 - Страница не найдена:', req.url);
-    res.status(404).redirect('/login');
+    res.redirect('/login');
 });
-
-// Функция для отправки файла с обработкой ошибок
-const sendFileWithError = (res, filePath, errorMessage) => {
-    res.sendFile(filePath, (err) => {
-        if (err) {
-            console.error(`Ошибка при отправке файла ${filePath}:`, err);
-            res.status(err.status || 500).send(errorMessage || 'Ошибка при загрузке страницы');
-        }
-    });
-};
 
 // Обработчик ошибок
 app.use((err, req, res, next) => {
@@ -163,17 +110,10 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${server.address().port}`);
-    console.log(`Открыть в браузере: http://localhost:${server.address().port}`);
+app.listen(PORT, () => {
+    console.log(`Сервер запущен на порту ${PORT}`);
 });
 
-// Обработка ошибок процесса
-process.on('unhandledRejection', (err) => {
-    console.error('Необработанное отклонение Promise:', err);
-});
-
-process.on('uncaughtException', (err) => {
-    console.error('Необработанное исключение:', err);
-    process.exit(1);
-}); 
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err)); 
