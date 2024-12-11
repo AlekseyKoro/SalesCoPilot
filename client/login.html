@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход | SalesAI</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="auth.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <a href="/"><h1>SalesAI</h1></a>
+        </div>
+    </nav>
+    <main class="auth-container">
+        <div class="auth-form">
+            <h2>Вход в систему</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginIdentifier">Email или номер телефона</label>
+                    <input type="text" id="loginIdentifier" required 
+                           placeholder="Введите email или номер телефона">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Пароль</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn submit-btn">Войти</button>
+            </form>
+            <p class="auth-link">Нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
+        </div>
+    </main>
+    <script src="js/notifications.js"></script>
+    <script src="js/auth-redirect.js"></script>
+    <script src="login.js"></script>
+</body>
+</html> 
