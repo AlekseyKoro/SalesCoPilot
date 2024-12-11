@@ -47,27 +47,34 @@ document.addEventListener('DOMContentLoaded', function() {
         // Обработка drag and drop
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             dropZone.classList.add('dragover');
         });
 
-        dropZone.addEventListener('dragleave', () => {
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             dropZone.classList.remove('dragover');
         });
 
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             dropZone.classList.remove('dragover');
             handleFiles(e.dataTransfer.files);
         });
 
-        // Обработка выбора файла через кнопку
+        // Обработка выбора файла через input
         fileInput.addEventListener('change', (e) => {
             handleFiles(e.target.files);
         });
 
         // Обработка клика на зону загрузки
-        dropZone.addEventListener('click', () => {
-            fileInput.click();
+        dropZone.addEventListener('click', (e) => {
+            // Если клик был не по label
+            if (!e.target.closest('label')) {
+                fileInput.click();
+            }
         });
 
         // Загрузка файла на сервер
@@ -135,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayCalls(data.calls);
 
             } catch (err) {
-                showNotification('Ошибка при загрузке сп��ска звонков', 'error');
+                showNotification('Ошибка при загрузке списка звонков', 'error');
                 console.error('Ошибка загрузки звонков:', err);
             }
         }
