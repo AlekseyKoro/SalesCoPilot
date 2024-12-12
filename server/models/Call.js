@@ -14,16 +14,13 @@ const callSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    uploadDate: {
-        type: Date,
-        default: Date.now
-    },
-    duration: {
-        type: Number
-    },
     fileSize: {
         type: Number,
         required: true
+    },
+    uploadDate: {
+        type: Date,
+        default: Date.now
     }
 });
 
